@@ -1,7 +1,25 @@
 # Letterboxd to Ratehouse Migrator
 
-A script for migrating your ratings from [Letterboxd](https://letterboxd.com) to [rate.house](https://rate.house/).#
+A script for migrating your data from [Letterboxd](https://letterboxd.com) to [rate.house](https://rate.house/).
+
+## Features
+Currently supported migrations are:
+- Ratings
+
+## Prerequisites
+You must have a working [Google Chrome](https://www.google.com/intl/en_uk/chrome/) installation.
 
 ## Usage
-1. Export your data from Letterboxd by going to `Settings > Import & Export > Export Your Data`
-2. Extract the provided zip, and place it in the working directory of this script, and name the folder `data`
+First export your data from Letterboxd by going to `Settings > Import & Export > Export Your Data` and extract the generated zip file.
+
+Then execute script with required options:
+```bash
+usage: migrate.py [-h] --letterboxd_data LETTERBOXD_DATA [--username USERNAME] [--password PASSWORD]
+
+options:
+  -h, --help            show this help message and exit
+  --letterboxd_data LETTERBOXD_DATA
+                        The path to your exported Letterboxd data
+  --username USERNAME   Your ratehouse username/email
+  --password PASSWORD   Your ratehouse password
+```
