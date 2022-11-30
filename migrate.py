@@ -17,9 +17,9 @@ os.system('color')
 # Parse arguments
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--letterboxd_data", help="The path to your exported Letterboxd data", required=True)
-parser.add_argument("--username", help="Your ratehouse username/email")
-parser.add_argument("--password", help="Your ratehouse password")
+parser.add_argument("--letterboxd_data", help="The path to your exported Letterboxd data. Required.", required=True)
+parser.add_argument("--username", help="Your ratehouse username/email. Required.", required=True)
+parser.add_argument("--password", help="Your ratehouse password. Required.", required=True)
 
 args = parser.parse_args()
 
