@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "fcffc69eaa8128c592a46224655e4b24967197dccdeb3c8036f462350fc8bf21"
+            "sha256": "e99abdfaf759aee1992c731b7aa31c72e5e0ff9d20fe89131c5cb4d121c22fb9"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -109,6 +109,14 @@
             ],
             "markers": "os_name == 'nt' and implementation_name != 'pypy'",
             "version": "==1.15.1"
+        },
+        "chromedriver-autoinstaller": {
+            "hashes": [
+                "sha256:1534d39903d22379ff13435d695703ae9b14ddb336d43556fd7735854ada6d2b",
+                "sha256:57f15f40d2e356c4cb84870cb7f882283a8280118bedacbf19301dd692f672b5"
+            ],
+            "index": "pypi",
+            "version": "==0.4.0"
         },
         "h11": {
             "hashes": [
