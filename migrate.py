@@ -54,8 +54,6 @@ def migrate_watchlist(driver, letterboxd_data):
             list_form = driver.find_element(By.CSS_SELECTOR, ".choose-list")
             options = list_form.find_elements(By.XPATH, "*")
 
-            print(len(options))
-
             list_exists = False
             for option in options:
                 if option.get_attribute("value").__contains__(list_name):
