@@ -39,9 +39,39 @@ def main():
 
 
 def migrate_watchlist(driver, letterboxd_data):
+    list_name = input(colored("What is the name of the list we should migrate the watchlist to?: ", "yellow"))
+
     watchlist = parse_watchlist(letterboxd_data + "/watchlist.csv")
 
-    # for wish in watchlist:
+    failed = []
+    for wish in watchlist:
+        try:
+            search_movie(driver, wish["movie_name"])
+
+            add_to_list_button = driver.find_element(By.CSS_SELECTOR, ".add-to-list-button")
+            add_to_list_button.click()
+
+            list_form = driver.find_element(By.CSS_SELECTOR, ".choose-list")
+            options = list_form.find_elements(By.XPATH, "*")
+
+            print(len(options))
+
+            list_exists = False
+            for option in options:
+                if option.get_attribute("value").__contains__(list_name):
+                    list_exists = True
+                    option.click()
+
+            if not list_exists:
+                print(
+                    colored(f"A list with name {list_name} does not exist! Please create the list and try again!",
+                            "red"))
+                return
+
+        except NoSuchElementException:
+            failed.append(wish)
+
+    report_migration_status(failed)
 
 
 def migrate_ratings(driver, letterboxd_data):
@@ -65,11 +95,7 @@ def migrate_ratings(driver, letterboxd_data):
                 button.click()
 
     # Report failures
-    print(colored(f"Successfully migrated ratings with {len(failed)} failures!", "green"))
-    if len(failed) > 0:
-        print(colored("Failed to set these movies ratings:", "red"))
-        for fail in failed:
-            print(colored(f"{fail['movie_name']}", "yellow"))
+    report_migration_status(failed)
 
 
 def search_movie(driver, query):
@@ -116,7 +142,9 @@ def parse_watchlist(path):
     with open(path, "r", encoding="UTF-8") as csv_file:
         reader = csv.reader(csv_file)
         for row in reader:
-            watchlist.append({"movie_name": row[1]})
+            movie_name = row[1]
+            if not movie_name == "Name":
+                watchlist.append({"movie_name": row[1]})
 
     return watchlist
 
@@ -140,6 +168,14 @@ def sign_in(driver, username, password):
 
 def get_or_wait_for_element(driver, by, selector):
     return WebDriverWait(driver, TIMEOUT).until(EC.presence_of_element_located((by, selector)))
+
+
+def report_migration_status(failed):
+    print(colored(f"Successfully migrated with {len(failed)} failures!", "green"))
+    if len(failed) > 0:
+        print(colored("Failed to migrate these movies:", "red"))
+        for fail in failed:
+            print(colored(f"{fail['movie_name']}", "yellow"))
 
 
 if __name__ == "__main__":
