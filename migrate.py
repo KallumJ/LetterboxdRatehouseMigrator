@@ -34,45 +34,30 @@ def main():
 
     if args.migration == "ratings":
         migrate_ratings(driver, args.letterboxd_data)
+    elif args.migration == "watchlist":
+        migrate_watchlist(driver, args.letterboxd_data)
+
+
+def migrate_watchlist(driver, letterboxd_data):
+    watchlist = parse_watchlist(letterboxd_data + "/watchlist.csv")
+
+    # for wish in watchlist:
 
 
 def migrate_ratings(driver, letterboxd_data):
-    # Parse ratings
     ratings = parse_ratings(letterboxd_data + "/ratings.csv")
 
     failed = []
-
     # For each movie
     for rating in ratings:
-        # Search for movie
-        search_bar = driver.find_element(By.NAME, "searchTerms")
-        search_bar.send_keys(rating["movie_name"])
-        result = WebDriverWait(driver, TIMEOUT).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".see-all")))
-        result.click()
-
         try:
-            # Get the movie category of results
-            categories = driver.find_elements(By.CSS_SELECTOR, ".relations-box")
-            movies_category = categories[2]
-
-            # Find matching result
-            results = movies_category.find_elements(By.TAG_NAME, "a")
-            found = None
-            for result in results:
-                if result.get_attribute("innerHTML") == rating["movie_name"]:
-                    found = result
-
-            # If a result is found, click it
-            if found:
-                found.click()
-            else:
-                raise NoSuchElementException
+            search_movie(driver, rating["movie_name"])
         except NoSuchElementException:  # If no result is found, add it to the failed list
             failed.append(rating)
             continue
 
         # Click the appropriate rating button
-        rating_form = WebDriverWait(driver, TIMEOUT).until(EC.presence_of_element_located((By.ID, "rating-input")))
+        rating_form = get_or_wait_for_element(driver, By.ID, "rating-input")
         rating_buttons = rating_form.find_elements(By.XPATH, "*")
 
         for button in rating_buttons:
@@ -85,6 +70,31 @@ def migrate_ratings(driver, letterboxd_data):
         print(colored("Failed to set these movies ratings:", "red"))
         for fail in failed:
             print(colored(f"{fail['movie_name']}", "yellow"))
+
+
+def search_movie(driver, query):
+    # Search for movie
+    search_bar = driver.find_element(By.NAME, "searchTerms")
+    search_bar.send_keys(query)
+    result = get_or_wait_for_element(driver, By.CSS_SELECTOR, ".see-all")
+    result.click()
+
+    # Get the movie category of results
+    categories = driver.find_elements(By.CSS_SELECTOR, ".relations-box")
+    movies_category = categories[2]
+
+    # Find matching result
+    results = movies_category.find_elements(By.TAG_NAME, "a")
+    found = None
+    for result in results:
+        if result.get_attribute("innerHTML") == query:
+            found = result
+
+    # If a result is found, click it
+    if found:
+        found.click()
+    else:
+        raise NoSuchElementException
 
 
 def parse_ratings(path):
@@ -101,7 +111,7 @@ def parse_ratings(path):
     return ratings
 
 
-def watchlist(path):
+def parse_watchlist(path):
     watchlist = []
     with open(path, "r", encoding="UTF-8") as csv_file:
         reader = csv.reader(csv_file)
@@ -116,17 +126,20 @@ def sign_in(driver, username, password):
     driver.get("https://rate.house/signin")
 
     # Enter username and password
-    username = driver.find_element(By.ID, "signin-username")
-    password = driver.find_element(By.ID, "signin-password")
+    username_field = driver.find_element(By.ID, "signin-username")
+    password_field = driver.find_element(By.ID, "signin-password")
 
-    username.send_keys(username)
-    password.send_keys(password)
+    username_field.send_keys(username)
+    password_field.send_keys(password)
 
     # Sign in
     signin_button = driver.find_element(By.XPATH, "/html/body/div[1]/div/div[2]/form/button")
     signin_button.click()
-    WebDriverWait(driver, TIMEOUT).until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, ".featured")))  # Wait for sign in redirect
+    get_or_wait_for_element(driver, By.CSS_SELECTOR, ".featured")  # Wait for sign in redirect
+
+
+def get_or_wait_for_element(driver, by, selector):
+    return WebDriverWait(driver, TIMEOUT).until(EC.presence_of_element_located((by, selector)))
 
 
 if __name__ == "__main__":
