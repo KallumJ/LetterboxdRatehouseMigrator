@@ -11,91 +11,123 @@ from selenium.webdriver.support.ui import WebDriverWait
 from termcolor import colored
 
 TIMEOUT = 5
+MIGRATIONS = ["ratings", "watchlist"]
 
-os.system('color')
 
-# Parse arguments
-parser = argparse.ArgumentParser()
+def main():
+    os.system('color')
 
-parser.add_argument("--letterboxd_data", help="The path to your exported Letterboxd data. Required.", required=True)
-parser.add_argument("--username", help="Your ratehouse username/email. Required.", required=True)
-parser.add_argument("--password", help="Your ratehouse password. Required.", required=True)
+    # Parse arguments
+    parser = argparse.ArgumentParser()
 
-args = parser.parse_args()
+    parser.add_argument("--letterboxd_data", help="The path to your exported Letterboxd data. Required.", required=True)
+    parser.add_argument("--username", help="Your ratehouse username/email. Required.", required=True)
+    parser.add_argument("--password", help="Your ratehouse password. Required.", required=True)
+    parser.add_argument("--migration", help="The type of migration to run", required=True, choices=MIGRATIONS)
 
-# Parse ratings
-ratings = []
-path = args.letterboxd_data + "/ratings.csv"
-with open(path, "r", encoding="UTF-8") as csv_file:
-    reader = csv.reader(csv_file)
-    for row in reader:
-        movie_name = row[1]
-        rating = row[4]
+    args = parser.parse_args()
 
-        if not movie_name == "Name":
-            ratings.append({"movie_name": movie_name, "rating": rating})
+    chromedriver_autoinstaller.install()
+    driver = webdriver.Chrome()
 
-chromedriver_autoinstaller.install()
-driver = webdriver.Chrome()
+    sign_in(driver, args.username, args.password)
 
-# Navigate to rate house sign in page
-driver.get("https://rate.house/signin")
+    if args.migration == "ratings":
+        migrate_ratings(driver, args.letterboxd_data)
 
-# Enter username and password
-username = driver.find_element(By.ID, "signin-username")
-password = driver.find_element(By.ID, "signin-password")
 
-username.send_keys(args.username)
-password.send_keys(args.password)
+def migrate_ratings(driver, letterboxd_data):
+    # Parse ratings
+    ratings = parse_ratings(letterboxd_data + "/ratings.csv")
 
-# Sign in
-signin_button = driver.find_element(By.XPATH, "/html/body/div[1]/div/div[2]/form/button")
-signin_button.click()
-WebDriverWait(driver, TIMEOUT).until(
-    EC.presence_of_element_located((By.CSS_SELECTOR, ".featured")))  # Wait for sign in redirect
+    failed = []
 
-failed = []
+    # For each movie
+    for rating in ratings:
+        # Search for movie
+        search_bar = driver.find_element(By.NAME, "searchTerms")
+        search_bar.send_keys(rating["movie_name"])
+        result = WebDriverWait(driver, TIMEOUT).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".see-all")))
+        result.click()
 
-# For each movie
-for rating in ratings:
-    # Search for movie
-    search_bar = driver.find_element(By.NAME, "searchTerms")
-    search_bar.send_keys(rating["movie_name"])
-    result = WebDriverWait(driver, TIMEOUT).until(EC.presence_of_element_located((By.CSS_SELECTOR, ".see-all")))
-    result.click()
+        try:
+            # Get the movie category of results
+            categories = driver.find_elements(By.CSS_SELECTOR, ".relations-box")
+            movies_category = categories[2]
 
-    try:
-        # Get the movie category of results
-        categories = driver.find_elements(By.CSS_SELECTOR, ".relations-box")
-        movies_category = categories[2]
+            # Find matching result
+            results = movies_category.find_elements(By.TAG_NAME, "a")
+            found = None
+            for result in results:
+                if result.get_attribute("innerHTML") == rating["movie_name"]:
+                    found = result
 
-        # Find matching result
-        results = movies_category.find_elements(By.TAG_NAME, "a")
-        found = None
-        for result in results:
-            if result.get_attribute("innerHTML") == rating["movie_name"]:
-                found = result
+            # If a result is found, click it
+            if found:
+                found.click()
+            else:
+                raise NoSuchElementException
+        except NoSuchElementException:  # If no result is found, add it to the failed list
+            failed.append(rating)
+            continue
 
-        # If a result is found, click it
-        if found:
-            found.click()
-        else:
-            raise NoSuchElementException
-    except NoSuchElementException:  # If no result is found, add it to the failed list
-        failed.append(rating)
-        continue
+        # Click the appropriate rating button
+        rating_form = WebDriverWait(driver, TIMEOUT).until(EC.presence_of_element_located((By.ID, "rating-input")))
+        rating_buttons = rating_form.find_elements(By.XPATH, "*")
 
-    # Click the appropriate rating button
-    rating_form = WebDriverWait(driver, TIMEOUT).until(EC.presence_of_element_located((By.ID, "rating-input")))
-    rating_buttons = rating_form.find_elements(By.XPATH, "*")
+        for button in rating_buttons:
+            if button.get_attribute("value") == rating["rating"]:
+                button.click()
 
-    for button in rating_buttons:
-        if button.get_attribute("value") == rating["rating"]:
-            button.click()
+    # Report failures
+    print(colored(f"Successfully migrated ratings with {len(failed)} failures!", "green"))
+    if len(failed) > 0:
+        print(colored("Failed to set these movies ratings:", "red"))
+        for fail in failed:
+            print(colored(f"{fail['movie_name']}", "yellow"))
 
-# Report failures
-print(colored(f"Successfully migrated ratings with {len(failed)} failures!", "green"))
-if len(failed) > 0:
-    print(colored("Failed to set these movies ratings:", "red"))
-    for fail in failed:
-        print(colored(f"{fail['movie_name']}", "yellow"))
+
+def parse_ratings(path):
+    ratings = []
+    with open(path, "r", encoding="UTF-8") as csv_file:
+        reader = csv.reader(csv_file)
+        for row in reader:
+            movie_name = row[1]
+            rating = row[4]
+
+            if not movie_name == "Name":
+                ratings.append({"movie_name": movie_name, "rating": rating})
+
+    return ratings
+
+
+def watchlist(path):
+    watchlist = []
+    with open(path, "r", encoding="UTF-8") as csv_file:
+        reader = csv.reader(csv_file)
+        for row in reader:
+            watchlist.append({"movie_name": row[1]})
+
+    return watchlist
+
+
+def sign_in(driver, username, password):
+    # Navigate to rate house sign in page
+    driver.get("https://rate.house/signin")
+
+    # Enter username and password
+    username = driver.find_element(By.ID, "signin-username")
+    password = driver.find_element(By.ID, "signin-password")
+
+    username.send_keys(username)
+    password.send_keys(password)
+
+    # Sign in
+    signin_button = driver.find_element(By.XPATH, "/html/body/div[1]/div/div[2]/form/button")
+    signin_button.click()
+    WebDriverWait(driver, TIMEOUT).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, ".featured")))  # Wait for sign in redirect
+
+
+if __name__ == "__main__":
+    main()
