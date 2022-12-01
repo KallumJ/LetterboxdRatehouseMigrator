@@ -23,7 +23,7 @@ def main():
     parser.add_argument("--letterboxd_data", help="The path to your exported Letterboxd data. Required.", required=True)
     parser.add_argument("--username", help="Your ratehouse username/email. Required.", required=True)
     parser.add_argument("--password", help="Your ratehouse password. Required.", required=True)
-    parser.add_argument("--migration", help="The type of migration to run", required=True, choices=MIGRATIONS)
+    parser.add_argument("--migration", help="The type of migration to run. Required.", required=True, choices=MIGRATIONS)
 
     args = parser.parse_args()
 
